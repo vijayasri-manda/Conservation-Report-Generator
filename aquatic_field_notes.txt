@@ -1,6 +1,0 @@
-FIELD REPORT 2025-04-15
-Location: Shell Bay Estuary, Zone Gamma
-Time: 10:00 - 13:00
-Observer: Dr. E. Dubois
-
-Notes: Water quality assessment shows high nutrient runoff, leading to a **medium** threat level. The water clarity is **poor**. Significant **Oyster** populations observed on restored reefs. Counted approximately **1200** viable individuals in the transect area. Noted a large bloom of **Zooplankton** with an estimated biomass of **450** mg/m³. Also observed a decline in the endemic **Seahorses**, with only **5** individuals found, which is critically low. The overall habitat condition is **Critical**. The primary threat appears to be agricultural runoff causing low dissolved oxygen.

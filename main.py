@@ -6,6 +6,10 @@ import textwrap
 import re
 from typing import List
 from io import StringIO
+from dotenv import load_dotenv
+
+# Load environment variables
+load_dotenv()
 
 try:
     import matplotlib.pyplot as plt
@@ -39,22 +43,41 @@ except ImportError:
 # --- 1. SETUP AND UTILITY FUNCTIONS ---
 
 # --- LLM SETUP ---
-LLM_MODEL_NAME = "distilgpt2"
+LLM_MODEL_NAME = "groq-llama"
+GROQ_API_KEY = os.getenv("GROQ_API_KEY")
+
+if not GROQ_API_KEY:
+    print("[WARNING] GROQ_API_KEY not found in environment variables.")
+
 try:
-    from transformers import pipeline
-    generator = pipeline(
-        'text-generation', 
-        model=LLM_MODEL_NAME, 
-        device=-1, # Use CPU
-        do_sample=True,
-        max_new_tokens=256,
-        temperature=0.7
-    )
-    LLM_AVAILABLE = True
-    print(f"\n[INFO] Successfully loaded open-source LLM: {LLM_MODEL_NAME}")
+    from groq import Groq
+    if GROQ_API_KEY:
+        groq_client = Groq(api_key=GROQ_API_KEY)
+        LLM_AVAILABLE = True
+        print(f"\n[INFO] Successfully connected to Groq API with model: llama-3.3-70b-versatile")
+    else:
+        raise ValueError("API key not found")
 except Exception as e:
-    print(f"\n[ERROR] Could not load the LLM ({LLM_MODEL_NAME}).")
-    LLM_AVAILABLE = False
+    print(f"\n[WARNING] Could not connect to Groq API: {e}")
+    print("[INFO] Falling back to local DistilGPT2 model...")
+    try:
+        from transformers import pipeline
+        generator = pipeline(
+            'text-generation', 
+            model='distilgpt2', 
+            device=-1,
+            do_sample=True,
+            max_new_tokens=256,
+            temperature=0.7
+        )
+        LLM_AVAILABLE = True
+        LLM_MODEL_NAME = "distilgpt2"
+        groq_client = None
+        print(f"\n[INFO] Successfully loaded fallback LLM: {LLM_MODEL_NAME}")
+    except Exception as e2:
+        print(f"\n[ERROR] Could not load any LLM model.")
+        LLM_AVAILABLE = False
+        groq_client = None
 # --- END LLM SETUP ---
 
 
@@ -343,6 +366,29 @@ def generate_llm_text(prompt: str, max_length: int) -> str:
     if not LLM_AVAILABLE:
         return "LLM Not Available. (Fallback to simple text)"
 
+    # Try Groq API first
+    if groq_client is not None:
+        try:
+            chat_completion = groq_client.chat.completions.create(
+                messages=[
+                    {
+                        "role": "system",
+                        "content": "You are a wildlife conservation expert providing detailed analysis and recommendations."
+                    },
+                    {
+                        "role": "user",
+                        "content": prompt
+                    }
+                ],
+                model="llama-3.3-70b-versatile",
+                temperature=0.7,
+                max_tokens=max_length,
+            )
+            return chat_completion.choices[0].message.content.strip()
+        except Exception as e:
+            print(f"[WARNING] Groq API error: {e}. Falling back to local model.")
+    
+    # Fallback to local model
     output = generator(
         prompt,
         max_length=max_length,

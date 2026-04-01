@@ -61,6 +61,13 @@ st.markdown(
         font-size: 1rem !important;
         background: white !important;
         color: #000 !important;
+        font-weight: 500 !important;
+      }
+      
+      .stTextInput > div > div > input::placeholder,
+      .stTextArea > div > div > textarea::placeholder {
+        color: #999 !important;
+        font-weight: 400 !important;
       }
       
       .stTextInput > label,
@@ -207,59 +214,14 @@ species = st.text_input("", placeholder="e.g., tiger, elephant, deer", key="spec
 st.markdown('<p class="input-label">⚠️ Threats Observed</p>', unsafe_allow_html=True)
 threats = st.text_area("", placeholder="e.g., Deforestation, Poaching, Habitat Loss", height=100, key="threats", label_visibility="collapsed", value="")
 
-st.markdown('<p class="input-label">📁 Upload Historical Data (CSV)</p>', unsafe_allow_html=True)
-uploaded_file = st.file_uploader("", type=['csv'], label_visibility="collapsed")
-
-# Show uploaded file info
-if uploaded_file is not None:
-    st.markdown(f"""
-    <div style='background: #e8f5e9; 
-                border-left: 4px solid #4a8f5a; 
-                padding: 10px 15px; 
-                border-radius: 4px; 
-                margin: 10px 0;'>
-        <p style='margin: 0; color: #2e7d32;'>
-            ✅ <strong>File uploaded:</strong> {uploaded_file.name}
-        </p>
-    </div>
-    """, unsafe_allow_html=True)
-
-# Show CSV format help with custom styling
-st.markdown("""
-<div style='background: linear-gradient(120deg, #fff9e6 0%, #ffe6f0 100%); 
-            border: 2px solid #ffd700; 
-            border-radius: 8px; 
-            padding: 15px; 
-            margin: 15px 0;'>
-    <h4 style='margin: 0 0 10px 0; color: #d97706;'>ℹ️ CSV Format Help</h4>
-    <p style='margin: 5px 0; color: #333;'>
-        Your CSV file must have:
-    </p>
-    <ul style='margin: 5px 0; color: #333;'>
-        <li>A <strong>Year</strong> column (required)</li>
-        <li>One or more species population columns</li>
-    </ul>
-    <p style='margin: 10px 0 5px 0; color: #333;'><strong>Example format:</strong></p>
-    <pre style='background: #f5f5f5; padding: 10px; border-radius: 4px; color: #000;'>Year,Tiger_Population,Deer_Population
-2020,45,120
-2021,48,125
-2022,52,130</pre>
-    <p style='margin: 10px 0 0 0; color: #333;'>
-        <strong>Sample files available:</strong><br>
-        • <code>historical_population_data.csv</code> (Zebra, Wild Dogs, Giraffes)<br>
-        • <code>tiger_population_data.csv</code> (Tiger, Deer, Wild Boar)
-    </p>
-</div>
-""", unsafe_allow_html=True)
-
 analyze_button = st.button("🔍 Analyze Biodiversity")
 
 # Process Analysis
 if analyze_button:
-    if not location or not species or uploaded_file is None:
-        st.error("⚠️ Please fill in all fields and upload a CSV file.")
+    if not location or not species:
+        st.error("⚠️ Please fill in Location and Species fields.")
     else:
-        with st.spinner("🔄 Analyzing biodiversity data..."):
+        with st.spinner("🔄 Analyzing biodiversity data with AI..."):
             try:
                 # Parse species input
                 species_list = [s.strip() for s in species.split(',')]
@@ -281,7 +243,7 @@ if analyze_button:
                         species_sightings.append(f"**50** **{sp}**")
                 
                 # Determine threat level
-                threats_lower = threats.lower()
+                threats_lower = threats.lower() if threats else ""
                 if any(word in threats_lower for word in ['critical', 'severe', 'poaching', 'snare']):
                     threat_level = "High"
                 elif any(word in threats_lower for word in ['moderate', 'concern', 'declining', 'deforestation']):
@@ -293,34 +255,39 @@ Location: {location}
 Observer: Field Researcher
 
 Notes: {' '.join(species_sightings)}. The habitat condition is **Fair**. Threat level is **{threat_level}**.
-{threats}
+{threats if threats else 'No specific threats reported.'}
 """
                 
-                # Load historical data
-                historical_df = pd.read_csv(uploaded_file)
+                # Generate sample data based on species input
+                years = list(range(2016, 2026))
+                data = {'Year': years}
                 
-                if 'Year' not in historical_df.columns:
-                    st.error(f"❌ CSV must contain a 'Year' column. Found columns: {', '.join(historical_df.columns.tolist())}")
-                    st.info("💡 Please ensure your CSV has a 'Year' column with years and species population columns.")
-                else:
-                    # Run analysis
-                    inferred_species = infer_species_from_historical_df(historical_df)
-                    extraction = extract_key_info(field_notes, expected_species=inferred_species)
-                    risk_score = habitat_risk_analysis(extraction["habitat_condition"], extraction["threat_level"])
-                    trend_df = population_trend_model(historical_df, extraction["species_sightings"])
-                    report_text = generate_report_and_recommendations(extraction, trend_df, risk_score)
-                    
-                    # Store results
-                    st.session_state.analysis_result = {
-                        "extraction": extraction,
-                        "risk_score": risk_score,
-                        "trend_df": trend_df,
-                        "report_text": report_text,
-                        "inferred_species": inferred_species
-                    }
-                    
-                    st.success("✅ Analysis complete!")
-                    
+                for sp in species_list[:3]:  # Limit to 3 species
+                    sp_name = sp.split(':')[0].strip() if ':' in sp else sp.strip()
+                    # Generate sample population data with slight variation
+                    base_pop = 50
+                    data[f"{sp_name}_Population"] = [base_pop + i * 2 + (i % 3) for i in range(10)]
+                
+                historical_df = pd.DataFrame(data)
+                
+                # Run analysis
+                inferred_species = infer_species_from_historical_df(historical_df)
+                extraction = extract_key_info(field_notes, expected_species=inferred_species)
+                risk_score = habitat_risk_analysis(extraction["habitat_condition"], extraction["threat_level"])
+                trend_df = population_trend_model(historical_df, extraction["species_sightings"])
+                report_text = generate_report_and_recommendations(extraction, trend_df, risk_score)
+                
+                # Store results
+                st.session_state.analysis_result = {
+                    "extraction": extraction,
+                    "risk_score": risk_score,
+                    "trend_df": trend_df,
+                    "report_text": report_text,
+                    "inferred_species": inferred_species
+                }
+                
+                st.success("✅ Analysis complete!")
+                
             except Exception as e:
                 st.error(f"❌ Error: {str(e)}")
 
